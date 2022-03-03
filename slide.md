@@ -1,8 +1,8 @@
-### 7年間運用したソーシャルゲームを<br>Amazon EC2構成からAmazon ECS構成へと<br>乗り換えた話
+## 7年間運用したソーシャルゲームを<br>Amazon EC2構成からAmazon ECS構成へと<br>乗り換えた話
 
 ---
 
-### 自己紹介
+## 自己紹介
 
 <img src="./img/marunouchi_ol_trans.png" width="10%"><br>
 
@@ -23,14 +23,14 @@
 
 ---
 
-### 目次
+## 目次
 
 - ぼくらの甲子園!ポケットについて
 - EC2時代のサーバ構成
 - なぜECSに乗り換えるか
 - ホコリかぶったPerlとモジュールのバージョンアップ
-- 巨大プロジェクトのDockerイメージを焼く
 - 時代に乗ったデプロイ方法にする
+- 巨大プロジェクトのDockerイメージを焼く
 - ゲームの心臓なのにSPOFになっていたバッチサーバの冗長化作戦
 - 非エンジニアに仕事をわかってもらう
 
@@ -94,11 +94,9 @@
 
 perl 5.16 on Amazon EC2 な図がどっかにないかな？
 
-<div class="r-stack">
-    <span class="fragment current-visible">役割に応じたEC2インスタンスがあり、必要に応じてオートスケールをしたりする</span>
-    <span class="fragment current-visible">Aurora MySQLや、Elasticache（Redis）などマネジメントされた物を利用</span>
-    <span class="fragment">batchサーバ上でcrondが常駐して、定刻の試合開始を行っている</span>
-</div>
+- 役割に応じたEC2インスタンスがあり、必要に応じてオートスケールをしたりする
+- Aurora MySQLや、Elasticache（Redis）などマネジメントされた物を利用
+- batchサーバ上でcrondが常駐して、定刻の試合開始を行っている
 
 ---
 
@@ -182,6 +180,178 @@ EC2上で利用しているOSのサポートが2020年末に終了するため�
 ---
 
 ネストされたJSONリクエストが正しくデコードされない問題
+
+---
+
+## 時代に乗ったデプロイ方法にする
+
+---
+
+EC2構成からECS構成へ
+
+コンテナベースのシステムへの転換
+
+---
+
+最も恩恵があるのがデプロイまわり
+
+最も変化があるのがデプロイまわり
+
+---
+
+### EC2構成のデプロイ方法
+
+strecherというOSSによるpull型のデプロイツール
+
+[EC2デプロイの図]
+
+https://techblog.kayac.com/10_stretcher.html
+
+- デプロイサーバがリポジトリから配布物を取得する
+- デプロイサーバが配布物を全て一つのアーカイブにまとめてAmazon S3に保存する
+- 各ホストがAmazon S3から配布物を取得する
+
+---
+
+### ECS構成のデプロイ方法
+
+<img src="./img/ecs-deploy.png" class="r-stretch">
+
+- とにかくコンテナイメージをビルドしてリポジトリに収める
+- デプロイ = コンテナインスタンスの入れ替え
+
+---
+
+## 巨大プロジェクトのdockerイメージを焼く
+
+---
+
+### EC2構成でのデプロイ方法の利点
+
+[EC2デプロイの図]
+
+Github上でデプロイ用のブランチが準備できれば、その先のデプロイが迅速
+
+そのスピード感に頼ってデプロイの頻度が多い運用となっていた
+
+---
+
+### ビルドが長い
+
+[ECSデプロイの図2]
+
+ブランチの準備ができてから、ビルドする時間がかかる
+
+---
+
+### circleciにビルドさせる
+
+- ブランチにコミットさえすればビルドされる
+- ECRへのPUSHまでのパイプライン
+
+---
+
+### 2階建て作戦
+
+baseイメージとappイメージに分ける
+
+- 夜中に依存パッケージ、モジュール、ツール類をbaseイメージでインストール
+- リリース用ブランチへのコミットがある度、アプリケーションコードをコンテナにコピーする
+
+##### Dockerfile.base
+```Dockerfile
+FROM perl:5.30.0-buster
+
+RUN apt-get install 必要なソフトウェア
+...
+```
+
+```bash
+$ docker build -t app:base .
+```
+
+##### Dockerfile
+```Dockerfile
+FROM app:base
+
+COPY ./ /home/user/repo/
+...
+```
+
+```bash
+$ docker build -t app .
+```
+
+運用上必要な箇所のみにコンテナイメージビルドの時間をかける
+
+---
+
+## ゲームの心臓なのにSPOFになっていたバッチサーバの冗長化作戦
+
+---
+
+ぼくポケの特徴の復習
+
+とにかくバッチゲーだということ
+
+---
+
+batchサーバで動いているcrondがゲームの心臓になっている
+
+batchサーバが突然死したときのバックアップ策が存在しなかった（！）
+
+---
+
+### 他プロジェクトでの冗長化事例
+
+CloudWatch Event + SQS + sqsjkr作戦
+
+---
+
+[落書き付きの図]
+
+https://techblog.kayac.com/2017/04/10/090000
+
+- CloudWatch Event: 定刻のイベント発火をマネジメントサービス化
+- SQS: 発火したジョブをキューイング
+- sqsjkr: SQSからジョブを取得し実行する(排他制御機能があり、冗長化可能)
+
+---
+
+### ぼくらの甲子園!ポケットでは…
+
+##### crontab.txt
+```txt
+10 00 * * * perl script/batch_aaa.pl
+12 00 * * * perl script/batch_bbb.pl
+16 00 * * * perl script/batch_ccc.pl
+...
+```
+
+- cron書式のテキストファイルで管理している
+- 運用上、頻繁に書き換える必要がある
+
+---
+
+### sqsjfr + SQS + sqsjkr作戦
+
+---
+
+図
+
+https://github.com/kayac/sqsjfr
+
+- sqsjfr: crondと同様にスケジューラの役割を果たし、実行すべきジョブをSQSに送り込む
+- SQS FIFO キュー: 同一メッセージを削除しながらジョブをキューイングする
+- sqsjfr: SQSからジョブを取得し実行する
+
+**SQS FIFOキューの重複削除機能によって、sqsjfrの冗長化ができる**
+
+**sqsjfrがcron書式を解釈できるため管理方法はそのまま**
+
+---
+
+## 非エンジニアに仕事をわかってもらう
 
 ---
 
