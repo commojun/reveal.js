@@ -44,7 +44,11 @@
 
 おかげさまで2021年10月で8周年を迎えることができました。
 
-公式サイトの画像
+<img src="./img/kuwatasite.png" class="r-stretch">
+
+<div class="inyou">
+https://koshien-pocket.kayac.com/
+</div>
 
 ---
 
@@ -55,9 +59,7 @@
 - チームメイトの一人ひとりがユーザ
 - ユーザは選手になって甲子園を目指すため、青春を追体験できる
 
-監督 -> キャラクタ
-
-プレイヤー　プレイヤー　みたいな絵
+<img src="./img/sousa.jpg" class="r-stretch">
 
 ---
 
@@ -67,11 +69,13 @@
 - 甲子園大会はトーナメント戦で1日かけて行う
 - 優勝すると、優勝チームの要望に応えた新聞を運営が作成し、ゲーム内に掲載する
 
-試合中の絵と新聞の絵
+<img src="./img/ingame.png" class="r-stretch">
 
 ---
 
 ### ぼくらの甲子園!ポケットの特徴
+
+<img src="./img/tokucho.jpg" class="r-stretch">
 
 - リーグ戦の試合は毎日定刻に開始
 - 参加するには決まった時間にログインしなければならない
