@@ -550,7 +550,7 @@ CloudWatch Event + SQS + sqsjkr作戦
 
 ---
 
-CloudWatch Event + SQS + sqsjkr作戦
+CloudWatch Event(今はEventBridge) + SQS + sqsjkr作戦
 
 <img src="./img/sqsjkr.jpg" class="r-stretch">
 
@@ -576,8 +576,11 @@ https://github.com/kayac/sqsjkr
 ```
 
 - cron書式のテキストファイルで管理している
+- テキストを解析して日時や内容の整合性をチェックするテストが作り込まれている
+- 100以上のエントリがあるのでCloudWatch Eventの上限に引っかかる
 - 運用上、頻繁に書き換える必要がある
-- このフォーマットは維持したい…
+
+**このフォーマットは維持したい…**
 
 ---
 
