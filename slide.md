@@ -21,6 +21,10 @@
 
 <img src="./img/kusonazo.png" class="r-stretch">
 
+<div class="inyou">
+https://twitter.com/kayac_inc/status/1434804351336255491
+</div>
+
 ---
 
 ## 目次
