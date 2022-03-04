@@ -112,7 +112,7 @@ https://koshien-pocket.kayac.com/
 
 ---
 
-perl 5.16 on Amazon EC2 な図がどっかにないかな？
+<img src="./img/ec2kousei.jpg" class="r-stretch">
 
 - 役割に応じたEC2インスタンスがあり、必要に応じてオートスケールをしたりする
 - Aurora MySQLや、Elasticache（Redis）などマネジメントされた物を利用
@@ -134,21 +134,31 @@ perl 5.16 on Amazon EC2 な図がどっかにないかな？
 
 ### 1, Amazon Linuxのサポート終了
 
-EC2上で利用しているOSのサポートが2020年末に終了するため、何かしら手を打たなければならなかった
+<img src="./img/amazonlinux.jpg" class="r-stretch">
+
+EC2上で利用しているOSのサポートが2020年末に終了するため<br>何かしら手を打たなければならなかった
 
 後継OS Amazon Linux2 への乗り換えという選択肢もあるが…
+
+<div class="inyou">
+https://aws.amazon.com/jp/blogs/news/update-on-amazon-linux-ami-end-of-life/
+</div>
 
 ---
 
 ### 2, コンテナを利用したサーバ構築が当たり前になりつつある
 
-他のゲームタイトルなどで、Amazon ECS構成を使ったゲームサーバについて社内に知見が貯まっていた
+<br>
+
+他のゲームタイトルやサービスで、Amazon ECSを使った<br>サーバ構成について社内に知見が貯まっていた
 
 ---
 
 ### 3, このゲームの運用を10年続けたい！
 
-長期運用タイトルにする意思が総意としてあった
+<br>
+
+長期運用タイトルにする意思がチームの総意としてあった
 
 リリース時から時代が変わっているので、将来性のある構成に乗り換えよう！
 
@@ -166,19 +176,19 @@ EC2上で利用しているOSのサポートが2020年末に終了するため�
 
 ---
 
-インフラ構成もだが、言語のバージョンとモジュールのバージョンも長らくメンテされていなかった
+<img src="./img/kanshin.jpg" class="r-stretch">
+
+運用が続くとゲーム体験に関係のある部分に関心が向きがち
 
 ---
 
-「図」
+<img src="./img/kanshin2.jpg" class="r-stretch">
 
-運用が続くとゲーム体験に関係のある部分にしか関心が向かなくなりがち
+言語のバージョンとモジュールのバージョンも長らくメンテされていなかった
 
 ---
 
 ### Perl 5.16 👉 Perl 5.30
-
----
 
 エイヤで言語バージョンを上げてみる
 
@@ -188,13 +198,185 @@ EC2上で利用しているOSのサポートが2020年末に終了するため�
 
 ---
 
+Perl 5.26での変更点
+
+<blockquote class="inyou">
+perl バイナリは @INC にパスのデフォルト集合を含んでいます。歴史的に、汚染モード (perl -T) が有効でない限り、最終的なエントリとして カレントディレクトリ (".") も含んでいました。 これは便利ですが、セキュリティ上の問題がありました: 例えば、 カレントディレクトリが(/tmp のように)信頼できない場合、 スクリプトが追加のモジュールを読み込もうとすると、そのディレクトリの下から コードを読み込んで実行する可能性があります。
+
+v5.26 から、"." は汚染モードの場合だけではなく、 **常にデフォルトで 除去されるようになりました。** これはモジュールのインストールとスクリプトの実行に大きな影響を与えます。
+</blockquote>
+
+特にテストコードが影響を受けた
+
+```perl　[4]
+use strict;
+use warnings;
+use utf8;
+use t::Util;
+use Test::More;
+...
+```
+
+<div class="inyou">
+https://perldoc.jp/docs/perl/5.26.0/perl5260delta.pod
+</div>
+
+---
+
+<blockquote class="inyou">
+@inc からドットが除去されたことによるテストの問題を修正するとき、 @inc にドットを再挿入するのは慎重に行うべきです、 これも実行時コードの実際の問題を抑制するかもしれないからです。 可能な限り、明示的な絶対/相対パスを使うという前述した手法を適用するか、 必要なファイルをサブディレクトリに再配置して、代わりに そのサブディレクトリを @inc に追加することを勧めます。
+</blockquote>
+
+@incのドットに頼ったモジュールはそう多くなかったので、引っ越して対応
+
+##### Before
+```bash
+/repository_root
+|--t
+   |--Util.pm
+   |--testa.t
+   |--testb.t
+```
+
+##### After
+```bash
+/repository_root
+|--t
+   |--lib
+   |  |--t
+   |     |--Util.pm
+   |--testa.t
+   |--testb.t
+```
+
+```
+perl -Ilib -It/lib
+```
+
+
+
+<div class="inyou">
+https://perldoc.jp/docs/perl/5.26.0/perl5260delta.pod
+</div>
+
+---
+
 コンパイルエラーしまくる
+
+---
+
+Perl 5.24での変更点
+
+<blockquote class="inyou">
+(autoderef 機能は取り除かれました)
+
+実験的な autoderef 機能 (push, pop, shift, unshift, splice, keys, values, each をスカラ引数で呼び出せるようにする) は失敗と 判断されました。 これは削除されました; この機能を use しようとすると (または以前は 引き起こされていた experimental::autoderef 警告を無効にしようとすると) 例外が発生するようになりました。
+</blockquote>
+
+こういうのがダメ
+
+```
+my $arrayref = [1,2,3];
+while (my $num = shift $arrayref) { # NG!
+    ...
+}
+```
+
+<div class="inyou">
+https://perldoc.jp/docs/perl/5.24.0/perl5240delta.pod
+</div>
+
+---
+
+@ をつけて回る作業
+```perl
+my $item_dic = {
+    one   => "hoge",
+    two   => "fuga",
+    three => "piyo",
+};
+for my $item (keys $item_dic) { # NG!
+    ...
+}
+```
+↓
+```perl [6]
+my $item_dic = {
+    one   => "hoge",
+    two   => "fuga",
+    three => "piyo",
+};
+for my $item (keys @$item_dic) { # OK
+    ...
+}
+```
+
+---
+
+長いときはpostderef機能に積極的に頼った
+
+<blockquote class="inyou">
+接尾辞デリファレンスは実験的ではなくなりました
+
+postderef 機能と postderef_qq 機能を使っても警告が発生しなくなりました。 以前使われていた、experimental::postderef 警告カテゴリを無効にしている 既存のコードはそのまま動作します。 postderef 機能は何の効果もありません; **全ての Perl コードは、スコープ内でどの機能が宣言されているかに関わらず、接尾辞デリファレンスを使えます。** 5.24 機能バンドルは postderef_qq 機能を含むようになりました。
+</blockquote>
+
+```perl
+my $arrayref_by_name = {
+    one => [2,3,4],
+    two => [5,6,7],
+};
+while (my $num = shift $arrayref_by_name->{one}){ # NG!
+    ...
+}
+```
+↓
+
+```perl [5]
+my $arrayref_by_name = {
+    one => [2,3,4],
+    two => [5,6,7],
+};
+while (my $num = shift $arrayref_by_name->{one}->@*){ # postderefに頼る
+    ...
+}
+```
+
+<div class="inyou">
+https://perldoc.jp/docs/perl/5.24.0/perl5240delta.pod
+</div>
 
 ---
 
 テストが運で落ちたり通ったりする
 
-管理画面の表示順シャッフルも
+---
+
+Perl 5.18 ハッシュのランダム化のあおりを受ける
+
+<blockquote class="inyou">
+Perl のハッシュ関数が使う種はランダムになりました。 これは、keys(), values(), each() のような関数が返すキー/値の 順序は実行毎に異なるということです。
+</blockquote>
+
+
+```perl
+my %tests = (
+    testa => sub { return "aaa" },
+    testb => sub { return "bbb" },
+);
+my @expected = ["aaa", "bbb"];
+
+for my $test (values %tests) {
+    is, $test(), shift @expected; # testa から実行されるとは限らない！
+}
+```
+
+keys や valuesを使って取り出した配列を使ってfor文を回すような箇所で、<br>配列の順番に依存したテストが落ちていた
+
+
+<div class="inyou">
+https://perldoc.jp/docs/perl/5.18.0/perl5180delta.pod#Hash32randomization
+</div>
 
 ---
 
@@ -211,11 +393,17 @@ EC2上で利用しているOSのサポートが2020年末に終了するため�
 
 ---
 
-ネストされたJSONリクエストの中に日本語が含まれていた場合、正しくエンコードされない問題
+2つのOSSにPRを出させていただきました
 
----
+<img src="./img/oss.png" class="r-stretch">
 
-ネストされたJSONリクエストが正しくデコードされない問題
+- ネストされたJSONリクエストの中に日本語があると正しくエンコードされない問題
+- ネストされたJSONリクエストが正しくデコードされない問題
+
+<div class="inyou">
+https://github.com/kazeburo/HTTP-Entity-Parser/pull/13<br>
+https://github.com/moznion/Plack-Request-WithEncoding/pull/3
+</div>
 
 ---
 
@@ -247,13 +435,15 @@ EC2構成からECS構成へ
 
 strecherというOSSによるpull型のデプロイツール
 
-[EC2デプロイの図]
-
-https://techblog.kayac.com/10_stretcher.html
+<img src="./img/ec2deploy.jpg" class="r-stretch">
 
 - デプロイサーバがリポジトリから配布物を取得する
 - デプロイサーバが配布物を全て一つのアーカイブにまとめてAmazon S3に保存する
 - 各ホストがAmazon S3から配布物を取得する
+
+<div class="inyou">
+https://techblog.kayac.com/10_stretcher.html
+</div>
 
 ---
 
@@ -268,7 +458,7 @@ https://techblog.kayac.com/10_stretcher.html
 
 ### EC2構成でのデプロイ方法の利点
 
-[EC2デプロイの図]
+<img src="./img/ec2deploy2.jpg" class="r-stretch">
 
 Github上でデプロイ用のブランチが準備できれば、その先のデプロイが迅速
 
@@ -278,7 +468,7 @@ Github上でデプロイ用のブランチが準備できれば、その先の�
 
 ### ビルドが長い
 
-[ECSデプロイの図2]
+<img src="./img/ecsdeploy2.jpg" class="r-stretch">
 
 ブランチの準備ができてから、ビルドする時間がかかる
 
@@ -338,15 +528,19 @@ $ docker build -t app .
 
 ---
 
-ぼくポケの特徴の復習
+### とにかくバッチサーバが命
 
-とにかくバッチゲーだということ
+<img src="./img/shiaiinochi.jpg" class="r-stretch">
+
+試合進行というゲームの最重要要素が1台のバッチサーバ(crontab)にかかっていた
 
 ---
 
-batchサーバで動いているcrondがゲームの心臓になっている
+### batchサーバが突然死したときのバックアップ策が存在しなかった（！）
 
-batchサーバが突然死したときのバックアップ策が存在しなかった（！）
+<img src="./img/batch1dai.jpg" class="r-stretch">
+
+ECS移行を機に冗長化できないか？
 
 ---
 
@@ -356,13 +550,18 @@ CloudWatch Event + SQS + sqsjkr作戦
 
 ---
 
-[落書き付きの図]
+CloudWatch Event + SQS + sqsjkr作戦
 
-https://techblog.kayac.com/2017/04/10/090000
+<img src="./img/sqsjkr.jpg" class="r-stretch">
 
 - CloudWatch Event: 定刻のイベント発火をマネジメントサービス化
 - SQS: 発火したジョブをキューイング
 - sqsjkr: SQSからジョブを取得し実行する(排他制御機能があり、冗長化可能)
+
+<div class="inyou">
+https://techblog.kayac.com/2017/04/10/090000<br>
+https://github.com/kayac/sqsjkr
+</div>
 
 ---
 
@@ -378,6 +577,7 @@ https://techblog.kayac.com/2017/04/10/090000
 
 - cron書式のテキストファイルで管理している
 - 運用上、頻繁に書き換える必要がある
+- このフォーマットは維持したい…
 
 ---
 
@@ -385,9 +585,9 @@ https://techblog.kayac.com/2017/04/10/090000
 
 ---
 
-図
+sqsjfr + SQS + sqsjkr作戦
 
-https://github.com/kayac/sqsjfr
+<img src="./img/sqsjfr.png" class="r-stretch">
 
 - sqsjfr: crondと同様にスケジューラの役割を果たし、実行すべきジョブをSQSに送り込む
 - SQS FIFO キュー: 同一メッセージを削除しながらジョブをキューイングする
@@ -396,6 +596,10 @@ https://github.com/kayac/sqsjfr
 **SQS FIFOキューの重複削除機能によって、sqsjfrの冗長化ができる**
 
 **sqsjfrがcron書式を解釈できるためcron書式がそのまま使える！**
+
+<div class="inyou">
+https://github.com/kayac/sqsjfr
+</div>
 
 ---
 
