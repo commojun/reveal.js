@@ -1,4 +1,4 @@
-#　YAPC Japan 2022発表資料です
+# YAPC Japan 2022発表資料です
 
 スライド
 https://commojun.github.io/yapc2022/
